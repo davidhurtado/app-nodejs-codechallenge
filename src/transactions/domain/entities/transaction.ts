@@ -2,6 +2,7 @@ import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 export interface TransactionResponse {
+  id?: string;
   transactionExternalId: string;
   transactionTypeId?: number;
   transactionType: { name: string };
@@ -11,14 +12,16 @@ export interface TransactionResponse {
 }
 
 export enum TransferStatus {
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
+  PENDING = 'pending',
 }
 
 export type TransactionDocument = Transaction & Document;
 
 @Schema()
 export class Transaction {
+  @Prop({ required: false })
+  id: string;
+
   @Prop({ required: true })
   accountExternalIdDebit: string;
 
@@ -31,7 +34,7 @@ export class Transaction {
   @Prop({ required: true })
   value: number;
 
-  @Prop({ default: 'pending' })
+  @Prop({ default: TransferStatus.PENDING })
   transactionStatus: string;
 
   @Prop({ default: Date.now })

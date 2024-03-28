@@ -1,8 +1,9 @@
-import { Transaction, TransactionResponse } from '../entities/transaction';
+import { TransactionResponse } from '../entities/transaction';
 
-export function structToTransaction(object: Transaction): TransactionResponse {
+export function structToTransaction(object: any): TransactionResponse {
   if (!object) return null;
   const data: TransactionResponse = {
+    id: object._id,
     transactionExternalId:
       object.transferTypeId === 1
         ? object.accountExternalIdDebit

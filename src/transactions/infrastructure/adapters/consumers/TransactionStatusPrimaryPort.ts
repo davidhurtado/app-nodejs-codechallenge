@@ -1,30 +1,31 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
 import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
-import { Model } from 'mongoose';
-import { TransactionUseCases } from 'src/transactions/application/useCases/TransactionUseCase';
+import { TransactionStatusUseCases } from 'src/transactions/application/useCases/TransactionStatusUseCase';
+import { TransactionStatusSecondaryAdapter } from '../implements/TransactionStatusSecondaryAdapter';
+import { InjectModel } from '@nestjs/mongoose';
 import { TransactionDocument } from 'src/transactions/domain/entities/transaction';
-import { TransactionSecondaryAdapter } from '../implements/TransactionSecondaryAdapter';
+import { Model } from 'mongoose';
+import { messageToTransactionStatus } from 'src/transactions/domain/mapper/transactionStatus';
 
 @Injectable()
-export class TransactionConsumerService implements OnModuleInit {
+export class TransactionStatusConsumerQueue implements OnModuleInit {
   private kafka: Kafka;
   private consumer: Consumer;
-  private readonly _useCases: TransactionUseCases;
+  private readonly _useCases: TransactionStatusUseCases;
   private transactionAdapter: Model<TransactionDocument>;
   constructor(
     @InjectModel('Transaction')
-    private readonly transactionModel: Model<TransactionDocument>,
+    transactionModel: Model<TransactionDocument>,
   ) {
     this.kafka = new Kafka({
-      clientId: 'transaction-service',
+      clientId: 'transactions-queue',
       brokers: ['kafka:9092'],
     });
     this.transactionAdapter = transactionModel;
-    const secondaryPort = new TransactionSecondaryAdapter(
+    const secondaryPort = new TransactionStatusSecondaryAdapter(
       this.transactionAdapter,
     );
-    this._useCases = new TransactionUseCases(secondaryPort);
+    this._useCases = new TransactionStatusUseCases(secondaryPort);
     this.consumer = this.kafka.consumer({ groupId: 'transaction-group' });
   }
 
@@ -39,16 +40,18 @@ export class TransactionConsumerService implements OnModuleInit {
   }
 
   private async subscribe() {
-    await this.consumer.subscribe({ topic: 'transaction-status-updates' });
+    await this.consumer.subscribe({
+      topic: 'transaction-status-updates',
+      fromBeginning: true,
+    });
   }
 
   private async run() {
     await this.consumer.run({
       eachMessage: async ({ message }: EachMessagePayload) => {
         if (message.value) {
-          this._useCases.updateTransactionStatus(
-            message.key.toString(),
-            message.value.toString(),
+          this._useCases.updateTransactionStatusQueue(
+            messageToTransactionStatus(message.value.toString()),
           );
         }
       },

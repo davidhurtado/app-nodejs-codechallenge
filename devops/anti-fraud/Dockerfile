@@ -11,7 +11,7 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
-
-EXPOSE 3000
+COPY ./src/anti-fraud/nest-cli.json .
+COPY ./src/main.antiFraud.ts ./src/main.ts
 
 CMD ["npm", "run", "start"]

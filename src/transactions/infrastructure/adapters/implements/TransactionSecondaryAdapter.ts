@@ -13,13 +13,13 @@ import {
 export class TransactionSecondaryAdapter implements ISecondaryPort {
   private kafka: Kafka;
   private producer: Producer;
-  private logger = new Logger('SecondaryAdapter');
+  private logger = new Logger('TransactionSecondaryAdapter');
   constructor(
     @InjectModel('Transaction')
     private readonly transactionModel: Model<TransactionDocument>,
   ) {
     this.kafka = new Kafka({
-      clientId: 'transaction-service',
+      clientId: 'transactions-queue',
       brokers: ['kafka:9092'],
     });
     this.transactionModel = transactionModel;
@@ -32,15 +32,12 @@ export class TransactionSecondaryAdapter implements ISecondaryPort {
 
   async getTransaction(transactionId: string): Promise<Transaction> {
     const transaction = await this.transactionModel.findOne({
-      $or: [
-        { accountExternalIdDebit: transactionId },
-        { accountExternalIdCredit: transactionId },
-      ],
+      _id: transactionId,
     });
     return transaction?.toObject();
   }
 
-  async updateTransactionStatus(
+  async updateTransactionStatusQueue(
     transactionId: string,
     status: string,
   ): Promise<void> {
@@ -52,23 +49,18 @@ export class TransactionSecondaryAdapter implements ISecondaryPort {
     );
   }
 
-  async updateTransactionStatusQueue(
-    transactionId: string,
-    status: string,
-  ): Promise<void> {
+  async antiFraudSenderQueue(transaction: Transaction): Promise<void> {
     try {
       await this.producer.connect();
       await this.producer.send({
-        topic: 'transaction-status-updates',
-        messages: [{ key: transactionId, value: status }],
+        topic: 'check-anti-fraud',
+        messages: [{ key: transaction.id, value: JSON.stringify(transaction) }],
       });
       this.logger.log(
-        `Transaction ${transactionId} status updated to ${status}`,
+        `Transaction ${JSON.stringify(transaction)} status check anti-fraud`,
       );
     } catch (error) {
-      this.logger.error(
-        `Failed to update transaction ${transactionId} status: ${error}`,
-      );
+      this.logger.error(`Failed to update transaction error: ${error}`);
     } finally {
       await this.producer.disconnect();
     }
