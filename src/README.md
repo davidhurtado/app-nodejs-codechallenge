@@ -1,6 +1,6 @@
 **Diagrama de la solución:**
 
-![Diagrama](diagram.jpeg)
+![Diagrama](./diagram.jpeg)
 
 **Stack Tecnológico:**
 
@@ -11,7 +11,7 @@
 
 **Arquitectura Hexagonal:**
 
-![Diagrama](arquitectura.jpg)
+![Diagrama](./arquitectura.jpg)
 
 **Requerimientos:**
 
